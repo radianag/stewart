@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import threading
 
-import roslib; roslib.load_manifest('teleop_twist_keyboard')
 import rospy
 
 from geometry_msgs.msg import Twist
@@ -70,7 +69,7 @@ speedBindings={
 class PublishThread(threading.Thread):
     def __init__(self, rate):
         super(PublishThread, self).__init__()
-        self.publisher = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
+        self.publisher = rospy.Publisher('/stewart/platform_twist', Twist, queue_size = 1)
         self.x = 0.0
         self.y = 0.0
         self.z = 0.0
@@ -88,6 +87,7 @@ class PublishThread(threading.Thread):
             self.timeout = None
 
         self.start()
+        self.accumulated_twist = Twist()
 
     def wait_for_subscribers(self):
         i = 0
@@ -108,6 +108,12 @@ class PublishThread(threading.Thread):
         self.th = th
         self.speed = speed
         self.turn = turn
+
+        self.accumulated_twist.linear.x = self.accumulated_twist.linear.x +  self.x * self.speed
+        self.accumulated_twist.linear.y = self.accumulated_twist.linear.y + self.y * self.speed
+        self.accumulated_twist.linear.z = self.accumulated_twist.linear.z + self.z * self.speed
+        # self.accumulated_twist.angular.z = self.accumulated_twist.angular.z + self.th * self.turn
+
         # Notify publish thread that we have a new message.
         self.condition.notify()
         self.condition.release()
@@ -123,28 +129,19 @@ class PublishThread(threading.Thread):
             self.condition.acquire()
             # Wait for a new message or timeout.
             self.condition.wait(self.timeout)
-
-            # Copy state into twist message.
-            twist.linear.x = self.x * self.speed
-            twist.linear.y = self.y * self.speed
-            twist.linear.z = self.z * self.speed
-            twist.angular.x = 0
-            twist.angular.y = 0
-            twist.angular.z = self.th * self.turn
-
             self.condition.release()
 
             # Publish.
-            self.publisher.publish(twist)
+            self.publisher.publish(self.accumulated_twist)
 
         # Publish stop message when thread exits.
-        twist.linear.x = 0
-        twist.linear.y = 0
-        twist.linear.z = 0
-        twist.angular.x = 0
-        twist.angular.y = 0
-        twist.angular.z = 0
-        self.publisher.publish(twist)
+        self.accumulated_twist.linear.x = 0
+        self.accumulated_twist.linear.y = 0
+        self.accumulated_twist.linear.z = 0
+        self.accumulated_twist.angular.x = 0
+        self.accumulated_twist.angular.y = 0
+        self.accumulated_twist.angular.z = 0
+        self.publisher.publish(self.accumulated_twist)
 
 
 def getKey(key_timeout):
@@ -166,7 +163,7 @@ if __name__=="__main__":
 
     rospy.init_node('teleop_twist_keyboard')
 
-    speed = rospy.get_param("~speed", 0.5)
+    speed = rospy.get_param("~speed", 0.01)
     turn = rospy.get_param("~turn", 1.0)
     repeat = rospy.get_param("~repeat_rate", 0.0)
     key_timeout = rospy.get_param("~key_timeout", 0.0)
