@@ -12,3 +12,4 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 
 add_library(joint_controller SHARED joint_controller.cc)
 target_link_libraries(joint_controller ${GAZEBO_libraries} ${roscpp_LIBRARIES})
+target_compile_features(joint_controller PRIVATE cxx_std_17)
