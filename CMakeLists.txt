@@ -21,3 +21,8 @@ target_link_libraries(ps4_controller ${catkin_LIBRARIES})
 
 add_executable(ik src/ik.cpp)
 target_link_libraries(ik ${catkin_LIBRARIES})
+
+catkin_install_python(PROGRAMS
+   teleop_pose_keyboard.py
+   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
